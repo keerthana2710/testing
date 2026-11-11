@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "BDD: run the login test",
+      "type": "shell",
+      "command": "mvn -B test",
+      "options": {
+        "cwd": "${workspaceFolder}/java-login",
+        "env": {
+          "JAVA_HOME": "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+        }
+      },
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "BDD: open the HTML report",
+      "type": "shell",
+      "command": "open target/cucumber-reports/report.html",
+      "options": { "cwd": "${workspaceFolder}/java-login" },
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Runs the BDD suite without needing JAVA_HOME in your shell profile.
+set -euo pipefail
+
+export JAVA_HOME="/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
+export PATH="$JAVA_HOME/bin:/opt/homebrew/bin:$PATH"
+
+cd "$(dirname "$0")"
+mvn -B test "$@"

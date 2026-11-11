@@ -1,0 +1,58 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run login feature (@smoke)",
+      "request": "launch",
+      "mainClass": "com.lxp.runner.RunCucumberTest",
+      "projectName": "lxp-login-bdd",
+      "cwd": "${workspaceFolder}/java-login",
+      "vmArgs": "-DTAGS=@smoke"
+    },
+    {
+      "type": "java",
+      "name": "Run course people feature (@coursesmoke)",
+      "request": "launch",
+      "mainClass": "com.lxp.runner.RunCucumberTest",
+      "projectName": "lxp-login-bdd",
+      "cwd": "${workspaceFolder}/java-login",
+      "vmArgs": "-DTAGS=@coursesmoke"
+    },
+    {
+      "type": "java",
+      "name": "Run signup feature (@signup)",
+      "request": "launch",
+      "mainClass": "com.lxp.runner.RunCucumberTest",
+      "projectName": "lxp-login-bdd",
+      "cwd": "${workspaceFolder}/java-login",
+      "vmArgs": "-DTAGS=@signup"
+    },
+    {
+      "type": "java",
+      "name": "Run create course feature (@createcourse)",
+      "request": "launch",
+      "mainClass": "com.lxp.runner.RunCucumberTest",
+      "projectName": "lxp-login-bdd",
+      "cwd": "${workspaceFolder}/java-login",
+      "vmArgs": "-DTAGS=@createcourse"
+    },
+    {
+      "type": "java",
+      "name": "Run stop generation feature (@stopgeneration)",
+      "request": "launch",
+      "mainClass": "com.lxp.runner.RunCucumberTest",
+      "projectName": "lxp-login-bdd",
+      "cwd": "${workspaceFolder}/java-login",
+      "vmArgs": "-DTAGS=@stopgeneration"
+    },
+    {
+      "type": "java",
+      "name": "Run all features",
+      "request": "launch",
+      "mainClass": "com.lxp.runner.RunCucumberTest",
+      "projectName": "lxp-login-bdd",
+      "cwd": "${workspaceFolder}/java-login"
+    }
+  ]
+}

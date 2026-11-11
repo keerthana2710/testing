@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>ai.campusinsights</groupId>
+  <artifactId>lxp-login-bdd</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>LXP Login — Selenium + Cucumber BDD</name>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <selenium.version>4.27.0</selenium.version>
+    <cucumber.version>7.20.1</cucumber.version>
+    <junit.platform.version>1.11.4</junit.platform.version>
+    <surefire.version>3.5.2</surefire.version>
+
+    <!-- blank so the value in .env is used; `mvn test -DHEADLESS=true` overrides it -->
+    <HEADLESS></HEADLESS>
+    <BROWSER></BROWSER>
+  </properties>
+
+  <dependencies>
+    <!-- Selenium 4 bundles Selenium Manager, so chromedriver is fetched automatically -->
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-java</artifactId>
+      <version>${selenium.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Cucumber BDD -->
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-java</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-junit-platform-engine</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- @Suite runner support -->
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-suite</artifactId>
+      <version>${junit.platform.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- the assertions in the step definitions -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>5.11.4</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- reads .env -->
+    <dependency>
+      <groupId>io.github.cdimascio</groupId>
+      <artifactId>dotenv-java</artifactId>
+      <version>3.0.2</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- keeps Selenium's logging quiet instead of a NOP-logger warning -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>2.0.16</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire.version}</version>
+        <configuration>
+          <!-- the @Suite class is what drives Cucumber -->
+          <includes>
+            <include>**/RunCucumberTest.java</include>
+          </includes>
+          <!-- so the -D overrides above reach the forked test JVM -->
+          <systemPropertyVariables>
+            <HEADLESS>${HEADLESS}</HEADLESS>
+            <BROWSER>${BROWSER}</BROWSER>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

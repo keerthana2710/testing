@@ -1,0 +1,15 @@
+{
+  // The language server does not auto-detect JVMs (DetectVMInstallationsJob is
+  // disabled), so the Homebrew JDK has to be named explicitly or every import
+  // fails to resolve.
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-27",
+      "path": "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+      "default": true
+    }
+  ],
+  "java.jdt.ls.java.home": "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+  "java.import.maven.enabled": true,
+  "java.configuration.updateBuildConfiguration": "automatic"
+}

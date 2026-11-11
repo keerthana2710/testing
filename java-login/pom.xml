@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>ai.campusinsights</groupId>
+  <artifactId>lxp-login-bdd</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>LXP Login — Selenium + Cucumber BDD</name>
+
+  <properties>
+    <maven.compiler.release>27</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <selenium.version>4.27.0</selenium.version>
+    <cucumber.version>7.20.1</cucumber.version>
+    <assertj.version>3.26.3</assertj.version>
+    <exec.plugin.version>3.5.0</exec.plugin.version>
+    <surefire.version>3.5.2</surefire.version>
+
+    <!-- blank so the value in .env is used; `mvn test -DHEADLESS=true` overrides it -->
+    <HEADLESS></HEADLESS>
+    <BROWSER></BROWSER>
+    <!-- blank uses BASE_URL from .env; `./run.sh -DBASE_URL=https://...` overrides it for one run -->
+    <BASE_URL></BASE_URL>
+    <!-- Cucumber tag expression, e.g. `mvn test -DTAGS=@coursesmoke`; blank runs everything -->
+    <TAGS></TAGS>
+  </properties>
+
+  <dependencies>
+    <!-- Selenium 4 bundles Selenium Manager, so chromedriver is fetched automatically -->
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-java</artifactId>
+      <version>${selenium.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Cucumber BDD: cucumber-core carries the CLI entry point we run below -->
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-java</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-core</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- the assertions in the step definitions -->
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>${assertj.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Cucumber reads this exception as "skip this scenario"; it is not JUnit -->
+    <dependency>
+      <groupId>org.opentest4j</groupId>
+      <artifactId>opentest4j</artifactId>
+      <version>1.3.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- reads .env -->
+    <dependency>
+      <groupId>io.github.cdimascio</groupId>
+      <artifactId>dotenv-java</artifactId>
+      <version>3.0.2</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- keeps Selenium's logging quiet instead of a NOP-logger warning -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>2.0.16</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- No JUnit engine left for Surefire to drive; Cucumber's CLI runs the suite. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire.version}</version>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+
+      <!--
+        Runs com.lxp.runner.RunCucumberTest in a forked JVM.
+        Forking (exec, not exec:java) matters: Cucumber's Main calls System.exit,
+        and its exit code is what fails `mvn test` when a scenario fails.
+      -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>${exec.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>run-cucumber</id>
+            <phase>test</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <executable>java</executable>
+          <classpathScope>test</classpathScope>
+          <!-- hands the terminal to the test JVM, so the OTP prompt can read the code you type -->
+          <inheritIo>true</inheritIo>
+          <arguments>
+            <argument>-classpath</argument>
+            <classpath/>
+            <argument>-DHEADLESS=${HEADLESS}</argument>
+            <argument>-DBROWSER=${BROWSER}</argument>
+            <argument>-DBASE_URL=${BASE_URL}</argument>
+            <argument>-DTAGS=${TAGS}</argument>
+            <argument>-Dcucumber.publish.quiet=true</argument>
+            <!-- glue, plugins and the feature path live in this class -->
+            <argument>com.lxp.runner.RunCucumberTest</argument>
+          </arguments>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

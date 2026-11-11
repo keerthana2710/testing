@@ -1,0 +1,67 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "BDD: run the login feature (@smoke)",
+      "type": "shell",
+      "command": "./run.sh -DTAGS=@smoke",
+      "options": { "cwd": "${workspaceFolder}/java-login" },
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "BDD: run the course people feature (@coursesmoke)",
+      "type": "shell",
+      "command": "./run.sh -DTAGS=@coursesmoke",
+      "options": { "cwd": "${workspaceFolder}/java-login" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "BDD: run the signup feature (@signup)",
+      "type": "shell",
+      "command": "./run.sh -DTAGS=@signup",
+      "options": { "cwd": "${workspaceFolder}/java-login" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "BDD: run the create course feature (@createcourse)",
+      "type": "shell",
+      "command": "./run.sh -DTAGS=@createcourse",
+      "options": { "cwd": "${workspaceFolder}/java-login" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "BDD: run the stop generation feature (@stopgeneration)",
+      "type": "shell",
+      "command": "./run.sh -DTAGS=@stopgeneration",
+      "options": { "cwd": "${workspaceFolder}/java-login" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "BDD: run all features",
+      "type": "shell",
+      "command": "./run.sh",
+      "options": { "cwd": "${workspaceFolder}/java-login" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "BDD: open the HTML report",
+      "type": "shell",
+      "command": "open target/cucumber-reports/report.html",
+      "options": { "cwd": "${workspaceFolder}/java-login" },
+      "problemMatcher": []
+    },
+    {
+      "label": "BDD: open the expected-vs-actual report",
+      "type": "shell",
+      "command": "open target/cucumber-reports/expected-vs-actual.html",
+      "options": { "cwd": "${workspaceFolder}/java-login" },
+      "problemMatcher": []
+    }
+  ]
+}

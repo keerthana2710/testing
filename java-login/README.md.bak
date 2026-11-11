@@ -1,0 +1,126 @@
+# LXP Login — Java + Selenium + Cucumber BDD
+
+UI automation for **https://lxp-stg.campusinsights.ai**, structured with the Page
+Object Model and written as a Cucumber BDD scenario.
+
+## Layout
+
+```
+java-login/
+├── pom.xml                              # dependencies + surefire
+├── run.sh                               # runs the suite without touching your shell profile
+└── src/test/
+    ├── java/com/lxp/
+    │   ├── config/Settings.java          # reads .env (this folder, then the parent)
+    │   ├── driver/DriverFactory.java     # one Chrome/Firefox/Edge for the whole run
+    │   ├── pages/BasePage.java           # waits, clicks, typing — shared by all pages
+    │   ├── pages/LoginPage.java          # locators + actions for /login
+    │   ├── pages/MfaPage.java            # the 6-digit emailed-code prompt
+    │   ├── steps/LoginSteps.java         # the assertions; no raw locators
+    │   ├── hooks/Hooks.java              # screenshot-on-failure, clean browser, quit at end
+    │   └── runner/RunCucumberTest.java   # the JUnit @Suite that `mvn test` picks up
+    └── resources/
+        ├── features/login.feature        # the Gherkin scenario
+        └── junit-platform.properties     # glue + report config for IDE runs
+```
+
+The rule that makes it POM: **locators and page interactions live in `pages/`,
+assertions live in `steps/`, and the scenario reads as plain English.**
+
+## The scenario
+
+```gherkin
+@smoke
+Scenario: Valid credentials are accepted and reach the MFA prompt
+  Given staging credentials are configured
+  When I sign in with my staging email and password
+  Then no login error is shown
+  And the 6-digit MFA prompt is displayed
+```
+
+Staging enforces MFA, so a correct email and password does **not** land in the
+app: the API replies *"MFA Required"* and the card swaps to a 6-digit code
+prompt. Reaching that prompt instead of a *"Login failed"* toast is what proves
+the credentials are good, so this runs unattended and is the one for CI.
+
+It skips itself if `LXP_EMAIL` / `LXP_PASSWORD` are blank.
+
+## Setup
+
+JDK 21 and Maven are installed via Homebrew, and Maven has already downloaded
+Selenium 4.27, Cucumber 7.20 and JUnit 5. Selenium Manager fetches the matching
+chromedriver automatically — nothing to install by hand.
+
+Homebrew's `openjdk@21` is keg-only, so `java` is not on your `PATH` by default.
+Either use `./run.sh` (which sets it itself), run from VS Code's terminal (the
+workspace sets it), or add this to `~/.zshrc`:
+
+```bash
+export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+## Credentials
+
+Read from `../.env`:
+
+```
+BASE_URL=https://lxp-stg.campusinsights.ai
+LXP_EMAIL=your.user@example.com
+LXP_PASSWORD=your-password
+BROWSER=chrome
+HEADLESS=false
+TIMEOUT=30
+```
+
+Use the **full** email address — the API rejects a domain with no TLD with
+*"Login failed / Invalid email format"*, which looks identical to a wrong
+password.
+
+## Running
+
+```bash
+./run.sh                      # the login test
+./run.sh -DHEADLESS=true      # no visible window
+./run.sh -DBROWSER=firefox    # another browser
+
+mvn test                      # once JAVA_HOME is set in your shell
+```
+
+In VS Code: **Terminal → Run Task → BDD: run the login test**. With the Java
+extension pack installed you also get a ▷ Run button on `RunCucumberTest` and an
+entry in the Testing sidebar.
+
+An HTML report lands at `target/cucumber-reports/report.html`; failure
+screenshots at `target/screenshots/`, and they are attached to the report too.
+
+## Three quirks of this login page
+
+All handled inside `LoginPage`:
+
+1. **The consent checkbox is the only gate on submit.** `#inline-consent-checkbox`
+   ("I agree to the Terms and Privacy Policy") must be ticked or Sign in stays
+   `disabled`. It is a Radix control — a `button[role=checkbox]`, not an
+   `<input>` — so its state is read from `aria-checked`.
+2. **That consent row isn't in the DOM on a fresh load.** It renders as soon as you
+   type into the form, so the button looks enabled on first paint, flips to
+   disabled when the row appears, then re-enables on consent. Always
+   `waitUntilEnabled` before clicking instead of trusting first paint.
+3. **Errors arrive as a toast, not inline text.** A failed login renders a Radix
+   toast `li[data-state='open'].destructive` with title *Login failed* and body
+   *Authentication failed*. There is no field-level error to assert on.
+
+## Adding a page
+
+```java
+public class DashboardPage extends BasePage {
+    private static final By HEADING = By.cssSelector("h1");
+
+    public DashboardPage(WebDriver driver) { super(driver); }
+
+    public DashboardPage load() { open("/dashboard"); return this; }
+}
+```
+
+Then new it up in a step class the way `LoginSteps` does, and keep the locators
+out of the step definitions.

@@ -1,0 +1,32 @@
+{
+  // Use the installed Homebrew JDK so a stale user-level Java setting cannot
+  // prevent the Java extension from activating.
+  "java.jdt.ls.java.home": "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-27",
+      "path": "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+      "default": true
+    }
+  ],
+  "java.import.maven.enabled": true,
+  "maven.terminal.useJavaHome": true,
+  "maven.executable.path": "/opt/homebrew/bin/mvn",
+  "terminal.integrated.env.osx": {
+    "JAVA_HOME": "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+    "PATH": "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home/bin:/opt/homebrew/bin:${env:PATH}"
+  },
+  "cucumber.features": [
+    "java-login/src/test/resources/features/**/*.feature"
+  ],
+  "cucumber.glue": [
+    "java-login/src/test/java/com/lxp/steps/**/*.java",
+    "java-login/src/test/java/com/lxp/hooks/**/*.java"
+  ],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "java-login/target": true
+  },
+  "java.configuration.updateBuildConfiguration": "interactive"
+}
