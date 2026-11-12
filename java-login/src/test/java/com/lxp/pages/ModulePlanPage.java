@@ -146,7 +146,7 @@ public class ModulePlanPage extends BasePage {
             return null;
         }
         for (WebElement row : driver.findElements(rows)) {
-            String id = row.getAttribute("data-rfd-draggable-id");
+            String id = row.getDomAttribute("data-rfd-draggable-id");
             if (id != null && !id.equals(exceptId)) {
                 return new String[] {id, row.findElement(By.xpath(".//h3")).getText().strip()};
             }

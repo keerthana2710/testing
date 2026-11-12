@@ -212,7 +212,7 @@ public class CreateCoursePage extends BasePage {
         try {
             WebElement shown = new WebDriverWait(driver, Duration.ofSeconds(60))
                     .until(ExpectedConditions.visibilityOfElementLocated(saved));
-            String label = shown.getAttribute("aria-label");
+            String label = shown.getDomAttribute("aria-label");
             return (label != null && !label.isBlank() ? label : shown.getText()).replaceAll("\\s+", " ").strip();
         } catch (org.openqa.selenium.TimeoutException e) {
             return "";
