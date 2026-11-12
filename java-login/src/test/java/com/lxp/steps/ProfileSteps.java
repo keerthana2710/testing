@@ -143,9 +143,30 @@ public class ProfileSteps {
         CheckLog.check("LXP_PASSWORD in .env holds the new password", "updated", true);
     }
 
+    /**
+     * Chrome has been seen to close on staging at the very end of a long run,
+     * even while signing out. The session is saved first; if the browser goes,
+     * a new one is started with it and sign out is done again, so "I am signed
+     * out" still checks a real sign-out.
+     */
     @When("I sign out")
     public void i_sign_out() {
-        profile.signOut();
+        try {
+            DriverFactory.saveSession();
+        } catch (org.openqa.selenium.WebDriverException ignored) {
+            // not on a page of the site
+        }
+        try {
+            profile.signOut();
+        } catch (org.openqa.selenium.WebDriverException e) {
+            if (!DriverFactory.isBrowserGone(e)) {
+                throw e;
+            }
+            System.out.println("[sign out] the browser closed while signing out; starting a new one and signing out again");
+            DriverFactory.restartKeepingSession();
+            profile.signOut();
+            CheckLog.review("browser restarted", "Chrome closed while signing out; signed out again in a new browser");
+        }
     }
 
     @Then("I am signed out")

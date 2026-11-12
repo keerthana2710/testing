@@ -44,14 +44,17 @@ public class SpeedGradingSteps {
 
     @When("I open Fast Grade from the {string} column")
     public void i_open_fast_grade_from_the_column(String column) {
-        assessment = RunClock.withNow(column);
-        if (fast.open()) {
-            fast.close();
-        }
-        if (!grades.gradebookShown()) {
-            grades.openGradebookGrid();
-        }
-        fast.openFromColumn(assessment);
+        recover("i open fast grade from the column", () -> {
+            assessment = RunClock.withNow(column);
+            rememberCourse();
+            if (fast.open()) {
+                fast.close();
+            }
+            if (!grades.gradebookShown()) {
+                grades.openGradebookGrid();
+            }
+            fast.openFromColumn(assessment);
+        });
     }
 
     @Then("the Fast Grade page opens for that assessment")
@@ -66,50 +69,63 @@ public class SpeedGradingSteps {
 
     @When("I show the student {string}")
     public void i_show_the_student(String name) {
-        boolean shown = fast.showStudent(name);
-        CheckLog.check("Fast Grade shows " + name, fast.student(), shown);
-        assertThat(shown).withFailMessage("Could not show " + name + " in Fast Grade; shown: " + fast.student()).isTrue();
+        recover("i show the student", () -> {
+            shownStudent = name;
+            boolean shown = fast.showStudent(name);
+            CheckLog.check("Fast Grade shows " + name, fast.student(), shown);
+            assertThat(shown).withFailMessage("Could not show " + name + " in Fast Grade; shown: " + fast.student()).isTrue();
+        });
     }
 
     @When("I close Fast Grade")
     public void i_close_fast_grade() {
-        fast.close();
+        recover("i close fast grade", () -> {
+            fast.close();
+        });
     }
 
     // ---- what it shows (TC1-3) ----
 
     @Then("it shows the student's quiz responses")
     public void it_shows_the_quiz_responses() {
-        String work = fast.work();
-        boolean shown = work.contains("Question") && (work.contains("Your Answer") || work.contains("Student's Answer") || work.contains("Selected answer"));
-        CheckLog.soft("the student's quiz answers are shown (questions with their answers)", excerpt(work), shown);
+        recover("it shows the quiz responses", () -> {
+            String work = fast.work();
+            boolean shown = work.contains("Question") && (work.contains("Your Answer") || work.contains("Student's Answer") || work.contains("Selected answer"));
+            CheckLog.soft("the student's quiz answers are shown (questions with their answers)", excerpt(work), shown);
+        });
     }
 
     @Then("it shows the student's submitted assignment text")
     public void it_shows_the_assignment_text() {
-        String work = fast.work();
-        boolean none = work.contains("No submission");
-        boolean text = !none && !work.contains("No submission content") && work.length() > 80;
-        CheckLog.soft("the student's submitted text is shown", none ? "No submission" : excerpt(work), text);
+        recover("it shows the assignment text", () -> {
+            String work = fast.work();
+            boolean none = work.contains("No submission");
+            boolean text = !none && !work.contains("No submission content") && work.length() > 80;
+            CheckLog.soft("the student's submitted text is shown", none ? "No submission" : excerpt(work), text);
+        });
     }
 
     @Then("it shows the student's posts and the teacher's replies")
     public void it_shows_posts_and_replies() {
-        String work = fast.work();
-        String student = fast.student();
-        boolean posts = !work.contains("No posts yet") && work.contains(student);
-        boolean replies = work.contains("Teacher") || work.contains("Instructor") || work.contains("Keerthana");
-        CheckLog.soft("the student's discussion posts are shown", excerpt(work), posts);
-        CheckLog.soft("the teacher's replies are shown in the conversation", replies ? "shown" : excerpt(work), replies);
+        recover("it shows posts and replies", () -> {
+            String work = fast.work();
+            String student = fast.student();
+            boolean posts = !work.contains("No posts yet") && work.contains(student);
+            boolean replies = work.contains("Teacher") || work.contains("Instructor") || work.contains("Keerthana");
+            CheckLog.soft("the student's discussion posts are shown", excerpt(work), posts);
+            CheckLog.soft("the teacher's replies are shown in the conversation", replies ? "shown" : excerpt(work), replies);
+        });
     }
 
     @Then("the teacher can enter a grade and a comment")
     public void the_teacher_can_enter_a_grade_and_a_comment() {
-        boolean grade = fast.gradeEditable("1");
-        boolean comment = fast.commentEditable("Speed grading check " + RunClock.NOW);
-        CheckLog.soft("a grade can be typed in \"Grade out of …\"", grade ? "typed and read back (then put back)" : "no editable grade box", grade);
-        CheckLog.soft("a comment can be typed in \"Comment to student\"", comment ? "typed and read back (then cleared)"
-                : "no comment box; editable boxes: " + fast.editableBoxes(), comment);
+        recover("the teacher can enter a grade and a comment", () -> {
+            boolean grade = fast.gradeEditable("1");
+            boolean comment = fast.commentEditable("Speed grading check " + RunClock.NOW);
+            CheckLog.soft("a grade can be typed in \"Grade out of …\"", grade ? "typed and read back (then put back)" : "no editable grade box", grade);
+            CheckLog.soft("a comment can be typed in \"Comment to student\"", comment ? "typed and read back (then cleared)"
+                    : "no comment box; editable boxes: " + fast.editableBoxes(), comment);
+        });
     }
 
     // ---- switching students (TC4-5) ----
@@ -216,45 +232,88 @@ public class SpeedGradingSteps {
 
     @Then("the comment is saved in the library")
     public void the_comment_is_saved_in_the_library() {
-        boolean saved = fast.libraryShows(libraryComment, true);
-        CheckLog.soft("\"" + libraryComment + "\" is listed in the library", saved ? "listed" : fast.libraryList(), saved);
+        recover("the comment is saved in the library", () -> {
+            boolean saved = fast.libraryShows(libraryComment, true);
+            CheckLog.soft("\"" + libraryComment + "\" is listed in the library", saved ? "listed" : fast.libraryList(), saved);
+        });
     }
 
     @When("I turn on suggestions when typing")
     public void i_turn_on_suggestions() {
-        fast.setSuggestions(true);
-        CheckLog.check("\"Show suggestions when typing\" is on", fast.suggestionsOn() ? "on" : "off", fast.suggestionsOn());
+        recover("i turn on suggestions", () -> {
+            fast.setSuggestions(true);
+            CheckLog.check("\"Show suggestions when typing\" is on", fast.suggestionsOn() ? "on" : "off", fast.suggestionsOn());
+        });
     }
 
     @Then("typing the start of the comment suggests it from the library")
     public void typing_suggests_it() {
-        String start = libraryComment.substring(0, Math.min(14, libraryComment.length()));
-        String offered = fast.suggestionsFor(start);
-        boolean ok = offered.contains(libraryComment) || offered.contains(libraryComment.substring(0, Math.min(30, libraryComment.length())));
-        CheckLog.soft("typing \"" + start + "\" offers the saved comment", offered.isEmpty() ? "no suggestions shown" : offered, ok);
+        recover("typing suggests it", () -> {
+            // the first two words, no trailing space: the editor keeps a trailing space as &nbsp;, which never matches
+            String[] words = libraryComment.split("\\s+");
+            String start = words.length > 1 ? words[0] + " " + words[1] : libraryComment;
+            String offered = fast.suggestionsFor(start);
+            boolean ok = offered.contains(libraryComment) || offered.contains(libraryComment.substring(0, Math.min(30, libraryComment.length())));
+            CheckLog.soft("typing \"" + start + "\" offers the saved comment", offered.isEmpty() ? "no suggestions shown (comment box held \"" + fast.lastTyped + "\")" : offered, ok);
+        });
     }
 
     @Then("the library lists the comment for {string}")
     public void the_library_lists_the_comment_for(String filter) {
-        fast.filterLibrary(filter);
-        boolean listed = fast.libraryShows(libraryComment, true);
-        CheckLog.soft("\"" + filter + "\" lists the comment", listed ? "listed" : excerpt(fast.libraryList()), listed);
+        recover("the library lists the comment for", () -> {
+            if (!fast.libraryAvailable()) {
+                CheckLog.soft("the Comment Library opens on \"" + assessment + "\" (to check \"" + filter + "\")",
+                        "no Comment Library button: the app shows it only when the student already has comments here", false);
+                return;
+            }
+            fast.filterLibrary(filter);
+            boolean listed = fast.libraryShows(libraryComment, true);
+            CheckLog.soft("\"" + filter + "\" lists the comment", listed ? "listed" : excerpt(fast.libraryList()), listed);
+        });
     }
 
     @Then("the library does not list the comment for {string}")
     public void the_library_does_not_list_the_comment_for(String filter) {
-        fast.filterLibrary(filter);
-        boolean hidden = !fast.libraryShows(libraryComment, true);
-        CheckLog.soft("\"" + filter + "\" leaves the comment out (it was added on another assessment)", hidden ? "not listed" : "listed", hidden);
+        recover("the library does not list the comment for", () -> {
+            if (!fast.libraryAvailable()) {
+                CheckLog.soft("the Comment Library opens on \"" + assessment + "\" (to check \"" + filter + "\")",
+                        "no Comment Library button: the app shows it only when the student already has comments here", false);
+                return;
+            }
+            fast.filterLibrary(filter);
+            boolean hidden = !fast.libraryShows(libraryComment, true);
+            CheckLog.soft("\"" + filter + "\" leaves the comment out (it was added on another assessment)", hidden ? "not listed" : "listed", hidden);
+        });
     }
 
     @When("I close the comment library")
     public void i_close_the_comment_library() {
-        fast.filterLibrary("All comments");
-        fast.closeLibrary();
+        recover("i close the comment library", () -> {
+            if (!fast.libraryAvailable()) {
+                return;
+            }
+            fast.filterLibrary("All comments");
+            fast.closeLibrary();
+        });
     }
 
     // ---- settings (TC10) ----
+
+    private String gradebookTab;
+
+    @When("I open Fast Grade in its own tab")
+    public void i_open_fast_grade_in_its_own_tab() {
+        gradebookTab = fast.openInOwnTab();
+        CheckLog.check("Fast Grade opens as its own page", driver.getCurrentUrl().replaceFirst("^https?://[^/]+", ""), driver.getCurrentUrl().contains("/quickreview/"));
+    }
+
+    @When("I close the Fast Grade tab")
+    public void i_close_the_fast_grade_tab() {
+        if (gradebookTab != null) {
+            fast.closeOwnTab(gradebookTab);
+            gradebookTab = null;
+        }
+    }
 
     @When("I set Fast Grade to sort {string}, hide student names and show {string}")
     public void i_set_fast_grade_settings(String sort, String view) {
@@ -310,6 +369,13 @@ public class SpeedGradingSteps {
 
     @When("I enter the grade {string} and approve it")
     public void i_enter_the_grade_and_approve(String grade) {
+        // Approve is only enabled for a change: if this grade is already recorded (an earlier run), use one point less
+        double[] recorded = AiGradingPage.score(grading.gradeCard().replace("—", ""));
+        if (grading.hasRecordedGrade() && recorded != null && num(recorded[0]).equals(grade)) {
+            String other = num(recorded[0] >= 1 ? recorded[0] - 1 : recorded[0] + 1);
+            CheckLog.review("grade to enter", grade + " is already recorded, so " + other + " is entered instead (Approve needs a change)");
+            grade = other;
+        }
         String held = fast.setGrade(grade);
         CheckLog.check("the grade " + grade + " is entered", "box holds \"" + held + "\"", held.equals(grade));
         boolean approved = grading.approve();
@@ -347,18 +413,69 @@ public class SpeedGradingSteps {
 
     @Then("the gradebook shows that grade for {string}")
     public void the_gradebook_shows_that_grade(String student) {
-        fast.close();
-        grades.openGradebookGrid();
-        String cell = "";
-        for (int i = 0; i < 10 && !cellHas(cell = fast.gridCell(student, assessment)); i++) {
-            pause(2000);
-        }
-        CheckLog.soft("the gradebook shows " + approvedGrade + " for " + student + " in \"" + assessment + "\"", cell.isEmpty() ? "cell not found" : cell, cellHas(cell));
+        recover("the gradebook shows that grade", () -> {
+            fast.close();
+            grades.openGradebookGrid();
+            String cell = "";
+            for (int i = 0; i < 10 && !cellHas(cell = fast.gridCell(student, assessment)); i++) {
+                pause(2000);
+            }
+            CheckLog.soft("the gradebook shows " + approvedGrade + " for " + student + " in \"" + assessment + "\"", cell.isEmpty() ? "cell not found" : cell, cellHas(cell));
+        });
     }
 
     private boolean cellHas(String cell) {
         String c = cell.toLowerCase(Locale.ROOT).replace(" ", "");
         return !approvedGrade.isEmpty() && (c.startsWith(approvedGrade) || c.contains(approvedGrade + "/") || c.matches(".*\\b" + approvedGrade + "\\b.*"));
+    }
+
+    // ---- browser crashes ----
+
+    private String courseUrl;
+    private String shownStudent;
+
+    private void rememberCourse() {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.*?/course/[0-9a-fA-F-]{36})").matcher(driver.getCurrentUrl());
+        if (m.find()) {
+            courseUrl = m.group(1);
+        }
+    }
+
+    /**
+     * Chrome has been seen to close mid-run on staging ("not connected to
+     * DevTools"). The signed-in session is saved before each of these steps;
+     * if the browser goes, a new one is started with it (no new OTP), the
+     * course's Grid, this assessment's Fast Grade and the student are opened
+     * again, and the step is run once more.
+     */
+    private void recover(String what, Runnable step) {
+        try {
+            if (driver.getCurrentUrl().startsWith("http")) {
+                DriverFactory.saveSession();
+            }
+        } catch (org.openqa.selenium.WebDriverException ignored) {
+            // nothing to save
+        }
+        try {
+            step.run();
+        } catch (org.openqa.selenium.WebDriverException e) {
+            if (!DriverFactory.isBrowserGone(e) || courseUrl == null) {
+                throw e;
+            }
+            System.out.println("[speed grading] the browser closed during \"" + what + "\"; starting a new one and carrying on");
+            DriverFactory.restartKeepingSession();
+            gradebookTab = null;
+            driver.get(courseUrl + "?type=course");
+            grades.openGradebookGrid();
+            if (!assessment.isEmpty()) {
+                fast.openFromColumn(assessment);
+                if (shownStudent != null) {
+                    fast.showStudent(shownStudent);
+                }
+            }
+            CheckLog.review("browser restarted", "Chrome closed during \"" + what + "\"; reopened Fast Grade for " + assessment + " and ran the step again");
+            step.run();
+        }
     }
 
     // ---- helpers ----

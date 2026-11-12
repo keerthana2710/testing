@@ -20,7 +20,9 @@ Feature: Speed grading - Fast Grade from the gradebook's assessment columns
   - Comment Library (button above the comments): "Show suggestions when
     typing", "Show saved comments for" (All comments / This course / This
     assessment), saved comments, and "Add comment to library" + Add to Library.
-  - Settings: "Sort student list", "Hide student names in FastGrade",
+  - Settings (the gear, top left) is only on the full Fast Grade page, so the
+    run opens it with the drawer's "Open in a new tab". Gear → Options:
+    "Sort student list", "Hide student names in FastGrade",
     "Default Discussion View Options" (Only this student's posts / Their
     posts, in the conversation around them), Save Options. These are the
     teacher's own settings, so the run puts them back afterwards.
@@ -97,8 +99,10 @@ Feature: Speed grading - Fast Grade from the gradebook's assessment columns
     And the library lists the comment for "All comments"
     When I close the comment library
 
-    # Settings: sort by first name, hide student names, only the student's own posts
-    When I set Fast Grade to sort "by student name (first name)", hide student names and show "Only this student's posts"
+    # Settings: the gear is on the full Fast Grade page (not in the gradebook's drawer): open it in its own tab
+    # sort by first name, hide student names, only the student's own posts
+    When I open Fast Grade in its own tab
+    And I set Fast Grade to sort "by student name (first name)", hide student names and show "Only this student's posts"
     Then student names are hidden
     And only the student's own posts are shown
 
@@ -107,6 +111,7 @@ Feature: Speed grading - Fast Grade from the gradebook's assessment columns
     Then the student list is in ascending order of first name
     When I show the student "CI Test Student"
     Then the student's posts are shown in the conversation around them
+    When I close the Fast Grade tab
 
     # Enter a grade and submit: recorded, and shown in the gradebook
     When I enter the grade "8" and approve it
@@ -114,7 +119,8 @@ Feature: Speed grading - Fast Grade from the gradebook's assessment columns
     And the gradebook shows that grade for "CI Test Student"
 
     # Filters on another assessment: the comment is not "This assessment"'s there, but is the course's
-    When I open Fast Grade from the "Python Basics Quiz 040948" column
+    # (the Comment Library button only shows where the student already has comments)
+    When I open Fast Grade from the "Week 1 Lab 1: Personal Greeting Program" column
     And I show the student "CI Test Student"
     Then the library does not list the comment for "This assessment"
     And the library lists the comment for "This course"

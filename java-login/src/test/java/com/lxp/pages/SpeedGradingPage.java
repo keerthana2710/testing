@@ -45,7 +45,12 @@ public class SpeedGradingPage extends BasePage {
     private static final Duration LOAD = Duration.ofSeconds(60);
 
     /** The Fast Grade drawer; everything below is looked for inside it. */
-    private static final String DRAWER = "//div[@role='dialog'][.//*[normalize-space(text())='Grade student submission'] or .//button[@aria-label='Next student']]";
+    /**
+     * The Fast Grade drawer on the gradebook, or, when Fast Grade is open as
+     * its own page (Open in a new tab), the page's body.
+     */
+    private static final String DRAWER = "(//div[@role='dialog'][.//*[normalize-space(text())='Grade student submission'] or .//button[@aria-label='Next student']]"
+            + " | //body[.//button[@aria-label='Next student']][not(.//div[@role='dialog']//button[@aria-label='Next student'])])";
 
     private static final By MENU_FAST_GRADE = By.xpath("//*[@role='menuitem'][normalize-space(.)='Fast Grade']");
     private static final By NEXT = By.xpath(DRAWER + "//button[@aria-label='Next student']");
@@ -142,6 +147,12 @@ public class SpeedGradingPage extends BasePage {
 
     /** Is the grade box there and does it take a value? Types it, reads it back, and puts the old value back. */
     public boolean gradeEditable(String probe) {
+        // the grade panel can load a few seconds after the work
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(15)).until(d -> !d.findElements(GRADE_INPUT).isEmpty());
+        } catch (TimeoutException ignored) {
+            // reported as no grade box
+        }
         List<WebElement> in = driver.findElements(GRADE_INPUT);
         if (in.isEmpty() || !in.get(0).isEnabled()) {
             return false;
@@ -189,16 +200,33 @@ public class SpeedGradingPage extends BasePage {
         return s == null ? "" : s.toString();
     }
 
-    /** Can a comment be written? Types it, checks it shows, then clears it again (nothing is saved). */
+    /**
+     * Can a comment be written? Types it, checks it shows, then puts back
+     * what the box held (it can hold the AI's feedback draft). Nothing is saved.
+     */
     public boolean commentEditable(String probe) {
         WebElement box = commentBox();
         if (box == null) {
             return false;
         }
+        String original = box.getText();
         typeInto(box, probe);
         boolean took = box.getText().contains(probe) || String.valueOf(box.getDomProperty("value")).contains(probe);
-        clear(box);
+        restore(box, original);
         return took;
+    }
+
+    /** Empties the box and types back what it held. */
+    private void restore(WebElement box, String original) {
+        clear(box);
+        if (!original.isBlank()) {
+            box.sendKeys(original);
+        }
+    }
+
+    /** Is the Comment Library button there? (The app shows it only when the student already has comments here.) */
+    public boolean libraryAvailable() {
+        return !driver.findElements(LIBRARY_BUTTON).isEmpty() || !driver.findElements(LIBRARY_TITLE).isEmpty();
     }
 
     // ---- students ----
@@ -442,34 +470,73 @@ public class SpeedGradingPage extends BasePage {
      * what the "Suggested from library" list offers ("" if nothing). The
      * typed text is cleared again afterwards.
      */
+    /** What the comment box held when no suggestion came (for the report). */
+    public String lastTyped = "";
+
     public String suggestionsFor(String typed) {
         closeLibrary();
         WebElement box = commentBox();
+        if (box == null) {
+            return "(no comment box: " + editableBoxes() + ")";
+        }
+        // the app looks for saved comments containing everything in the box, so start from an empty box
+        String original = box.getText();
+        clear(box);
         typeInto(box, typed);
+        // make sure the page takes the typed text (it looks for suggestions after a short pause)
+        js("arguments[0].dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: ''}));", box);
         String offered = "";
         try {
-            offered = new WebDriverWait(driver, Duration.ofSeconds(10)).until(d -> {
+            offered = new WebDriverWait(driver, Duration.ofSeconds(20)).until(d -> {
+                // the popup: header "Suggested from library (N)", one button per saved comment, and a "Keep typing" tip
                 Object s = js("const h = [...document.querySelectorAll('*')].find(e => e.children.length === 0 && /Suggested from library/i.test(e.textContent));"
-                        + "if (!h) return null; let p = h; while (p.parentElement && p.innerText.length < h.textContent.length + 10) p = p.parentElement;"
-                        + "return p.innerText.replace(/\\s+/g, ' ').trim();");
+                        + "if (!h) return null; let p = h; while (p.parentElement && !/Keep typing/.test(p.innerText)) p = p.parentElement;"
+                        + "const items = [...p.querySelectorAll('button')].map(b => b.innerText.replace(/\\s+/g, ' ').trim()).filter(t => t);"
+                        + "return items.length ? items.join(' | ') : null;");
                 return s == null ? null : s.toString();
             });
         } catch (TimeoutException ignored) {
-            // nothing offered
+            offered = "";
+            lastTyped = box.getText();
         }
         List<WebElement> closeSuggestions = driver.findElements(By.xpath(DRAWER + "//button[@aria-label='Close suggestions']"));
         if (!closeSuggestions.isEmpty()) {
             js("arguments[0].click();", closeSuggestions.get(0));
         }
-        clear(box);
+        restore(box, original);
         return offered;
     }
 
     // ---- settings ----
 
+    /**
+     * Settings (the gear, top left) is only on the full Fast Grade page, not
+     * in the gradebook's drawer. It opens a small menu: Options → the
+     * settings window (Keyboard Shortcuts is the other item).
+     */
     public void openSettings() {
         click(SETTINGS);
+        click(By.xpath("//button[normalize-space(.)='Options']"));
         new WebDriverWait(driver, LOAD).until(ExpectedConditions.visibilityOfElementLocated(SORT));
+    }
+
+    /** The drawer's "Open in a new tab": switches to that tab; returns the gradebook tab to come back to. */
+    public String openInOwnTab() {
+        String gradebook = driver.getWindowHandle();
+        java.util.Set<String> before = driver.getWindowHandles();
+        click(By.xpath(DRAWER + "//button[@aria-label='Open in a new tab']"));
+        String tab = new WebDriverWait(driver, LOAD).until(d -> d.getWindowHandles().stream().filter(h -> !before.contains(h)).findFirst().orElse(null));
+        driver.switchTo().window(tab);
+        waitLoaded();
+        return gradebook;
+    }
+
+    /** Closes the full-page tab and goes back to the gradebook (its drawer still open). */
+    public void closeOwnTab(String gradebook) {
+        if (!driver.getWindowHandle().equals(gradebook)) {
+            driver.close();
+        }
+        driver.switchTo().window(gradebook);
     }
 
     public void sortBy(String option) {
