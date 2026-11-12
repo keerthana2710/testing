@@ -61,6 +61,26 @@ public class AssistantPanel extends BasePage {
                         + " or @aria-label='Not helpful' or @aria-label='Regenerate')]"));
     }
 
+    /**
+     * The confirm button of a change the assistant asks to approve, e.g. its
+     * "Rename module" card (Rename / Cancel). Looked for anywhere in the chat
+     * panel, as the card is not always inside the reply. Empty if none shows.
+     */
+    public java.util.Optional<WebElement> confirmButton() {
+        By plain = By.xpath("//textarea[@aria-label='Chat message']/ancestor::*[.//*[@data-message-role]][1]"
+                + "//button[not(@disabled)][starts-with(normalize-space(.), 'Rename') or starts-with(normalize-space(.), 'Apply')"
+                + " or starts-with(normalize-space(.), 'Approve') or starts-with(normalize-space(.), 'Accept')"
+                + " or starts-with(normalize-space(.), 'Confirm') or starts-with(normalize-space(.), 'Save')"
+                + " or starts-with(normalize-space(.), 'Update')]");
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(15)).until(d -> d.findElements(plain).stream().anyMatch(WebElement::isDisplayed));
+        } catch (org.openqa.selenium.TimeoutException e) {
+            return java.util.Optional.empty();
+        }
+        List<WebElement> shown = driver.findElements(plain).stream().filter(WebElement::isDisplayed).toList();
+        return java.util.Optional.of(shown.get(shown.size() - 1));
+    }
+
     /** Sends the question and returns the assistant's finished reply as plain text. */
     public String ask(String question) {
         String before = status();

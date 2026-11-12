@@ -18,6 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Create a course, fill in Course Setup, generate the AI plan and approve it. */
 public class CreateCourseSteps {
 
+    /** The outline PDF uploaded, and what the page showed for it once saved ("" if nothing). */
+    private String uploadedFile = "";
+    private String uploadedOutline = "";
+
     private final CreateCoursePage page = new CreateCoursePage(DriverFactory.get());
 
     private String name;
@@ -74,6 +78,27 @@ public class CreateCourseSteps {
         String first = page.dateShown("First day");
         String last = page.dateShown("Last day");
         CheckLog.check("course dates are set", first + " to " + last, !first.startsWith("Pick") && !last.startsWith("Pick"));
+    }
+
+    /** A file from src/test/resources/files, e.g. "python_course_outline.pdf". */
+    @When("I upload the course outline PDF {string}")
+    public void i_upload_the_course_outline_pdf(String file) {
+        java.net.URL url = getClass().getResource("/files/" + file);
+        assertThat(url).withFailMessage("No test file src/test/resources/files/" + file).isNotNull();
+        try {
+            uploadedOutline = page.uploadOutlinePdf(java.nio.file.Path.of(url.toURI()));
+        } catch (java.net.URISyntaxException e) {
+            throw new IllegalStateException(e);
+        }
+        uploadedFile = file;
+    }
+
+    @Then("the course outline file is saved")
+    public void the_course_outline_file_is_saved() {
+        boolean saved = !uploadedOutline.isEmpty();
+        CheckLog.check("the course outline PDF " + uploadedFile + " is saved",
+                saved ? "shown as \"" + uploadedOutline + "\"" : "not shown as saved within 60s", saved);
+        assertThat(saved).withFailMessage("The course outline PDF was not saved: " + uploadedFile).isTrue();
     }
 
     @When("I click Save")

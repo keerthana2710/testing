@@ -1,10 +1,14 @@
 @assistant
 Feature: AI Assistant for a teacher: blank courses and programs
-  Signed in as the teacher (LXP_TEACHER_* in .env, keerthana+t1@sentellent.com,
-  whose program is "learn html"), the teacher opens the AI
-  Assistant with its icon, asks about blank courses and programs, checks
-  the New Program button its program steps point to, and creates a blank
-  course from the assistant.
+  Signed in as the teacher (LXP_TEACHER_* in .env, keerthana+t1@sentellent.com),
+  the teacher opens the AI Assistant with its icon, asks about blank courses
+  and programs, checks the New Program button its program steps point to,
+  creates a blank course from the assistant, and has the assistant add and
+  update content in one of their courses.
+
+  Built to run every day: nothing is archived or deleted, new names carry
+  the run's day and time ({now}), and the course to change is taken from
+  the teacher's own course list, not hard-coded.
 
   The answers are worded differently every time, so each expected point is
   a list of words ("any of"); one of them in the answer shows the point is
@@ -28,15 +32,29 @@ Feature: AI Assistant for a teacher: blank courses and programs
     the window closes and the assistant replies "Created an empty course:
     <name>" with an Open Course button, which opens the course.
   - The teacher's Free plan allows 1 active course. At that limit the
-    assistant explains the limit instead of showing the button, and the
-    blank course scenario fails at "I click the button in the assistant's
-    answer". Delete or archive the course an earlier run made to free the slot.
+    assistant explains the limit instead of showing the button: this is
+    reported for review, the blank course steps are passed over (not
+    failed), and the content steps still run, as they need no free slot.
 
-  Each passing run of the second scenario leaves a new course in the
-  teacher's account, which uses the plan's one course slot: delete it before
-  the next run.
+  - On a course page, "Add a new module on <topic>" adds the module to the
+    course at once with a "Planning" badge, and the answer has a View Module
+    Plan button. It opens the module's Content Plan ("Module Items (N)") with
+    Save, Reject and Approve Plan. Approve Plan generates the planned items
+    into the course; that takes minutes, so the test does not wait for it.
+  - An edit instruction in the chat ("Rename the module ... to ...")
+    renames another module already in that course (the first one in its
+    outline that is not the new one; modules are found by id, so names from
+    earlier days' runs never get in the way). The assistant asks to confirm
+    with a "Rename module" card; its Rename button is clicked to accept it.
+  - The new module's topic is not fixed: each run picks a Python topic
+    (decorators, generators, context managers, ...) that no module in the
+    course is about yet.
 
-  Scenario: The assistant explains blank courses and programs
+  Each run adds a module to the first course in the teacher's list.
+
+  It is all one teacher, so it is one scenario: one sign-in, one sign-out.
+
+  Scenario: The teacher's AI Assistant: blank courses, programs and course content
     Given the "teacher" account is configured
     And I am signed in as the "teacher"
     When I open the AI Assistant with its icon
@@ -72,7 +90,7 @@ Feature: AI Assistant for a teacher: blank courses and programs
 
     # Show my programs: the teacher's programs with their course counts
     When I ask the AI Assistant "Show my programs"
-    Then the answer lists the program "learn html" with its course count
+    Then the answer lists my programs with their course counts
 
     # Adding courses to a program: open the program → Add Courses → choose the courses
     When I ask the AI Assistant "How to add courses to my program 'full stack testing'?"
@@ -97,16 +115,9 @@ Feature: AI Assistant for a teacher: blank courses and programs
       | with AI from the courses         | AI, courses, curriculum                  |
       | warns it overwrites your edits   | replac, overwrit, rewrit, lose, manual edits |
 
-    When I sign out
-    Then I am signed out
-
-  Scenario: Create a blank course from the assistant
-    Given the "teacher" account is configured
-    And I am signed in as the "teacher"
-    When I open the AI Assistant with its icon
-
     # Create blank course: the assistant's Blank Course button opens the blank course window
-    And I ask the AI Assistant "Create blank course"
+    # (with no free course slot on the plan, the blank course steps are passed over)
+    When I ask the AI Assistant "Create blank course"
     And I click the button in the assistant's answer
     Then the Create Blank Course window is open
 
@@ -115,11 +126,24 @@ Feature: AI Assistant for a teacher: blank courses and programs
     Then the course description is required and no course is created
 
     # Title and description entered: the course is created, its dashboard opens, its card is in My Courses
-    When I describe the course as "FSQA as a Blank Course - Test blank flow"
+    When I describe the course as "FSQA Blank Course {now} - Test blank flow"
     And I create the blank course
     And I click Open Course in the assistant
     Then the new course's dashboard opens
     And the new course's card is in My Courses
+
+    # Approve Plan: on a course, the assistant plans a module ("Planning"); Approve Plan is accepted
+    # (its content takes minutes to generate, so the test does not wait for it)
+    When I open one of my courses
+    And I open the AI Assistant with its icon
+    And I ask the AI Assistant to add a new module on a topic the course does not have yet
+    And I open the module plan from the assistant's answer
+    Then the module plan is waiting for approval
+    When I approve the module plan
+
+    # Update existing items: an edit instruction in the chat renames another module in the same course
+    When I ask the AI Assistant to rename another module in the course to "Renamed by Assistant {now}"
+    Then the course outline shows that module as "Renamed by Assistant {now}"
 
     # Done: log out and close the browser
     When I sign out

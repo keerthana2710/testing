@@ -92,6 +92,20 @@ public class AssistantSteps {
         CheckLog.soft("the answer is at most " + max + " words", words + " words", words > 0 && words <= max);
     }
 
+    /**
+     * Whatever the teacher's programs are called today: the answer lists at
+     * least one program with its course count, e.g. "lean html — Generate
+     * course for the HTML (0 courses)".
+     */
+    @Then("the answer lists my programs with their course counts")
+    public void the_answer_lists_my_programs_with_their_course_counts() {
+        Matcher m = Pattern.compile("([^:()\\n]{2,80}?)\\s*[—–-][^()]{0,300}?\\((\\d+) courses?\\)|([^:()\\n]{2,80}?)\\s*[—–-]\\s*(\\d+) courses?\\b",
+                Pattern.CASE_INSENSITIVE).matcher(answer);
+        boolean listed = m.find();
+        CheckLog.soft("the teacher's programs are listed with their course counts",
+                listed ? m.group().strip() : answer, listed);
+    }
+
     /** e.g. "learn html — 1 course" or "Artificial Intelligence with Python — ... (1 course)". */
     @Then("the answer lists the program {string} with its course count")
     public void the_answer_lists_the_program_with_its_course_count(String program) {

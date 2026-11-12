@@ -62,6 +62,8 @@ public class CreateCoursePage extends BasePage {
     private static final By OUTLINE_TEXT = By.cssSelector("textarea[aria-label='Text of the course outline']");
     private static final By OUTLINE_ADD = By.xpath("//div[@role='dialog']//button[normalize-space(.)='Add']");
     private static final By OUTLINE_ADDED = By.cssSelector("button[aria-label='Remove Pasted course outline']");
+    // Outline → "Course outline *": the hidden file field behind "choose a file" (PDF only)
+    private static final By OUTLINE_PDF = By.cssSelector("[role='dialog'] input[type='file'][aria-label='Course outline (PDF)']");
 
     // shown while the plan is written, and enabled again once it is ready
     private static final By PLAN_AGAIN = By.xpath("//button[normalize-space(.)='Plan again']");
@@ -190,6 +192,30 @@ public class CreateCoursePage extends BasePage {
             }
             default -> throw new IllegalArgumentException("Unknown course setup field: " + field
                     + " (use Number of modules, Lecture hours per week, First day, Last day, Course outline)");
+        }
+    }
+
+    /**
+     * Outline → Course outline → Upload PDF: the file goes into the hidden
+     * PDF field behind "choose a file". Waits until the file is shown as
+     * saved (its name, a "Remove ..." button for it, or a "saved" message).
+     * Returns what showed it, or "" if it never did.
+     */
+    public String uploadOutlinePdf(java.nio.file.Path file) {
+        showSection(OUTLINE_SECTION, OUTLINE_SHOWN);
+        String name = file.getFileName().toString();
+        String base = name.replaceFirst("\\.pdf$", "");
+        driver.findElement(OUTLINE_PDF).sendKeys(file.toAbsolutePath().toString());
+        By saved = By.xpath("//div[@role='dialog']//button[starts-with(@aria-label, 'Remove')][contains(@aria-label, '" + base + "')]"
+                + " | //div[@role='dialog']//*[not(self::script)][contains(text(), '" + base + "')]"
+                + " | //*[contains(translate(normalize-space(text()), 'FS', 'fs'), 'file saved')]");
+        try {
+            WebElement shown = new WebDriverWait(driver, Duration.ofSeconds(60))
+                    .until(ExpectedConditions.visibilityOfElementLocated(saved));
+            String label = shown.getAttribute("aria-label");
+            return (label != null && !label.isBlank() ? label : shown.getText()).replaceAll("\\s+", " ").strip();
+        } catch (org.openqa.selenium.TimeoutException e) {
+            return "";
         }
     }
 
