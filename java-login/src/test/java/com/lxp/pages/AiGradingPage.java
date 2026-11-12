@@ -208,6 +208,7 @@ public class AiGradingPage extends BasePage {
      */
     private void openResponseForm() {
         List<String> clicked = new java.util.ArrayList<>();
+        boolean reloaded = false;
         for (int i = 0; i < 4 && driver.findElements(EDITOR).isEmpty(); i++) {
             WebElement next;
             try {
@@ -220,6 +221,15 @@ public class AiGradingPage extends BasePage {
                         + "for (const re of order) { const b = visible.find(b => re.test(text(b))); if (b) return b; }"
                         + "return null;"));
             } catch (TimeoutException e) {
+                // Student View has been seen to leave the assignment's body unloaded (only the
+                // breadcrumb and side panel, no buttons at all): reload once, it stays in Student View
+                if (!reloaded && clicked.isEmpty()) {
+                    reloaded = true;
+                    System.out.println("[ai grading] the assignment page showed no buttons after 30s; reloading it once");
+                    driver.navigate().refresh();
+                    i--;
+                    continue;
+                }
                 break;
             }
             String label = next.getText().replaceAll("\\s+", " ").strip();
