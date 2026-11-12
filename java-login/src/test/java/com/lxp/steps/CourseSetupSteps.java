@@ -45,6 +45,32 @@ public class CourseSetupSteps {
     /** What was set, field → value, in the order it was set. */
     private final Map<String, String> entered = new LinkedHashMap<>();
 
+    /**
+     * Chrome sometimes closes by itself on this machine ("session deleted as
+     * the browser has closed the connection"). If it does during a Course
+     * Setup step, start a new browser with the signed-in session, go back to
+     * the course and do the step once more.
+     */
+    private void retryIfBrowserCloses(Runnable step) {
+        try {
+            DriverFactory.saveSession();
+        } catch (org.openqa.selenium.WebDriverException ignored) {
+            // the session saved before still holds
+        }
+        try {
+            step.run();
+        } catch (org.openqa.selenium.WebDriverException e) {
+            if (!DriverFactory.isBrowserGone(e) || setup.courseUrl() == null) {
+                throw e;
+            }
+            CheckLog.review("browser closed", "Chrome closed during this step (" + e.getClass().getSimpleName()
+                    + "); started a new one with the signed-in session and did the step again");
+            DriverFactory.restartKeepingSession();
+            driver.get(setup.courseUrl());
+            step.run();
+        }
+    }
+
     private void course() {
         if (setup.courseUrl() == null) {
             setup.rememberCourse();
@@ -57,11 +83,13 @@ public class CourseSetupSteps {
     @When("I set in Course Setup:")
     public void i_set_in_course_setup(DataTable table) {
         course();
-        setup.open();
         for (Map<String, String> row : table.asMaps()) {
             String field = row.get("field");
             String value = RunClock.withNow(row.get("value"));
-            setup.set(field, value);
+            retryIfBrowserCloses(() -> {
+                setup.open();
+                setup.set(field, value);
+            });
             entered.put(field, value);
             CheckLog.check("set " + field + " in " + CourseSetupPage.stageOf(field), value, true);
         }
@@ -69,16 +97,23 @@ public class CourseSetupSteps {
 
     @When("I switch through every Course Setup tab")
     public void i_switch_through_every_course_setup_tab() {
-        for (String[] tab : CourseSetupPage.ALL_TABS) {
-            setup.openTab(tab[0], tab[1]);
-        }
+        retryIfBrowserCloses(() -> {
+            setup.open();
+            for (String[] tab : CourseSetupPage.ALL_TABS) {
+                setup.openTab(tab[0], tab[1]);
+            }
+        });
     }
 
     @When("I close Course Setup without saving and open it again")
     public void i_close_course_setup_and_open_it_again() {
-        setup.closeWithoutSaving();
-        driver.navigate().refresh();
-        setup.open();
+        retryIfBrowserCloses(() -> {
+            if (setup.isOpen()) {
+                setup.closeWithoutSaving();
+            }
+            driver.navigate().refresh();
+            setup.open();
+        });
     }
 
     @When("I close Course Setup")
@@ -91,7 +126,12 @@ public class CourseSetupSteps {
     @Then("every value I set is still shown")
     public void every_value_i_set_is_still_shown() {
         for (Map.Entry<String, String> e : entered.entrySet()) {
-            String shown = setup.readSettled(e.getKey(), e.getValue());
+            String[] read = {""};
+            retryIfBrowserCloses(() -> {
+                setup.open();
+                read[0] = setup.readSettled(e.getKey(), e.getValue());
+            });
+            String shown = read[0];
             boolean same = CourseSetupPage.matches(e.getKey(), e.getValue(), shown);
             CheckLog.soft(e.getKey() + " (" + CourseSetupPage.stageOf(e.getKey()) + ") still shows \"" + e.getValue() + "\"",
                     shown.isEmpty() ? "empty" : shown, same);
@@ -103,20 +143,32 @@ public class CourseSetupSteps {
     @When("I clear the course dates")
     public void i_clear_the_course_dates() {
         course();
-        setup.open();
-        setup.clearDates();
+        retryIfBrowserCloses(() -> {
+            setup.open();
+            setup.clearDates();
+        });
     }
 
     @Then("the course dates are empty")
     public void the_course_dates_are_empty() {
-        List<String> dates = setup.dates();
+        List<String> dates = new java.util.ArrayList<>();
+        retryIfBrowserCloses(() -> {
+            setup.open();
+            dates.clear();
+            dates.addAll(setup.dates());
+        });
         boolean empty = dates.stream().allMatch(d -> d.startsWith("Pick") || d.isEmpty() || d.equals("not shown"));
         CheckLog.soft("Clear the dates empties First day and Last day", String.join(" to ", dates), empty);
     }
 
     @Then("the course dates are set")
     public void the_course_dates_are_set() {
-        List<String> dates = setup.dates();
+        List<String> dates = new java.util.ArrayList<>();
+        retryIfBrowserCloses(() -> {
+            setup.open();
+            dates.clear();
+            dates.addAll(setup.dates());
+        });
         boolean set = dates.stream().noneMatch(d -> d.startsWith("Pick") || d.isEmpty() || d.equals("not shown"));
         CheckLog.check("First day and Last day are set", String.join(" to ", dates), set);
         assertThat(set).withFailMessage("Course dates are not set: " + dates).isTrue();

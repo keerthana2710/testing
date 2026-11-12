@@ -47,7 +47,7 @@ Feature: Course Setup → Course Configuration
     Then the new course is created
     When I open the new course
 
-    # Upload course outline: Upload PDF → File saved
+    # Course Setup → Upload course outline: 1. Upload PDF → expected: File saved
     And I upload the course outline PDF "python_course_outline.pdf"
     Then the course outline file is saved
 
