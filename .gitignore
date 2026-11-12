@@ -1,2 +1,5 @@
 java-login/target/
 .env
+
+# real Canvas submissions (student work): kept on this machine only
+java-login/src/test/resources/files/canvas_submissions.zip
