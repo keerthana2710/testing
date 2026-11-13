@@ -42,6 +42,13 @@ public final class Settings {
     public static final boolean HEADLESS = isTruthy(get("HEADLESS", "true"));
     public static final Duration TIMEOUT = Duration.ofSeconds(Long.parseLong(get("TIMEOUT", "20").trim()));
 
+    /**
+     * Watch mode (WATCH_MS in .env, milliseconds; 0 turns it off): pages that
+     * support it outline what they are about to click or check, say it in a
+     * banner at the top, and pause this long so a person can follow the run.
+     */
+    public static final long WATCH_MS = Long.parseLong(get("WATCH_MS", "1500").trim());
+
     // not final: the profile scenario changes it mid-run
     private static volatile String password = get("LXP_PASSWORD", "");
 

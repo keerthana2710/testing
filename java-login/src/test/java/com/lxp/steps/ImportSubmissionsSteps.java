@@ -165,8 +165,9 @@ public class ImportSubmissionsSteps {
 
     @Then("nothing is imported yet")
     public void nothing_is_imported_yet() {
-        int now = page.totalResponses();
-        CheckLog.check("no submission is saved at the preview step", "Total Responses " + totalBefore + " → " + now, now == totalBefore);
+        // the preview only reads the ZIP: no import request has gone out (the Responses count is checked after the import)
+        int sent = page.importsSent();
+        CheckLog.check("no submission is saved at the preview step", sent == 0 ? "no import sent, only the preview" : sent + " imports sent", sent == 0);
     }
 
     /**
@@ -225,6 +226,12 @@ public class ImportSubmissionsSteps {
 
     @Then("each imported student's submission is in the responses")
     public void each_imported_submission_is_in_the_responses() {
+        if (!imported.isEmpty()) {
+            // only the imported students were added: so the preview before saved nothing
+            int now = page.totalResponses();
+            CheckLog.check("Total Responses grew by the " + imported.size() + " imported students only",
+                    totalBefore + " → " + now, now == totalBefore + imported.size());
+        }
         imported.forEach((login, name) -> {
             String file = canvasZip.stream().filter(e -> e.login().equals(login)).findFirst().map(Entry::file).orElse("");
             String row = page.row(name);

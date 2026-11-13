@@ -22,8 +22,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
- * An assignment's Responses tab and its "Import Canvas Submissions" window
- * (staging, Nov 2026).
+ * An assignment's Responses tab, and the "Import Canvas Submissions" window
+ * opened from the course's Grades page (⋮ → Import Submissions → choose the
+ * assignment → Continue) (staging, Nov 2026).
  *
  * The window: "Select your Canvas submissions .zip" (a hidden
  * input[type=file][accept=.zip]). Canvas's Download Submissions names each
@@ -44,10 +45,13 @@ import java.util.zip.ZipOutputStream;
 public class ImportSubmissionsPage extends BasePage {
 
     private static final Duration LOAD = Duration.ofSeconds(60);
+    /** Watch mode pause, from WATCH_MS in .env (0 = off). */
+    private static final long WATCH = com.lxp.config.Settings.WATCH_MS;
+    /** The Grades page's list of assessments ("Lab: ... Assignment · 100 Pts"). */
+    private static final By ASSESSMENTS = By.xpath("//main//button[contains(., ' Pts') or contains(., ' pts')]");
 
     private static final String DIALOG = "(//div[@role='dialog'][.//*[normalize-space(text())='Import Canvas Submissions']])[last()]";
     private static final By WINDOW = By.xpath(DIALOG);
-    private static final By OPEN_IMPORT = By.xpath("//main//button[starts-with(normalize-space(.), 'Import Submissions')]");
     private static final By RESPONSES_TAB = By.xpath("//main//button[normalize-space(.)='Responses']");
     private static final By REFRESH = By.xpath("//main//button[starts-with(normalize-space(.), 'Refresh')]");
     private static final By ZIP_INPUT = By.xpath(DIALOG + "//input[@type='file']");
@@ -110,14 +114,16 @@ public class ImportSubmissionsPage extends BasePage {
         it.click();
         new WebDriverWait(driver, LOAD).until(d -> d.getCurrentUrl().contains("item="));
         assignmentUrl = driver.getCurrentUrl();
+        assignmentTitle = assignment;
         click(RESPONSES_TAB);
         new WebDriverWait(driver, LOAD).until(d -> TOTAL.matcher(mainText()).find());
         // kept so a new browser can carry on signed in if Chrome closes (see backToResponses)
         com.lxp.driver.DriverFactory.saveSession();
     }
 
-    /** The assignment's address, for coming back to its Responses after a browser restart. */
+    /** The assignment's address and title: for its Responses, and for choosing it on the Grades page. */
     private String assignmentUrl;
+    private String assignmentTitle;
 
     /** After Chrome closed by itself: a new browser with the signed-in session, back on Responses. */
     private void backToResponses() {
@@ -142,12 +148,17 @@ public class ImportSubmissionsPage extends BasePage {
                 .toList();
     }
 
-    /** Refresh re-reads the responses from the server. */
+    /**
+     * The assignment's Responses, re-read from the server: Refresh when they
+     * are showing, else (e.g. after importing from the Grades page) back to the
+     * assignment and its Responses tab.
+     */
     public void refresh() {
-        if (!driver.findElements(REFRESH).isEmpty()) {
+        if (!driver.findElements(REFRESH).isEmpty() && TOTAL.matcher(mainText()).find()) {
             click(REFRESH);
         } else {
-            driver.navigate().refresh();
+            driver.get(assignmentUrl);
+            new WebDriverWait(driver, LOAD).until(ExpectedConditions.elementToBeClickable(RESPONSES_TAB));
             click(RESPONSES_TAB);
         }
         new WebDriverWait(driver, LOAD).until(d -> TOTAL.matcher(mainText()).find());
@@ -345,12 +356,136 @@ public class ImportSubmissionsPage extends BasePage {
 
     // ---- the import window ----
 
+    /**
+     * Import Submissions from the course's Grades page, as a teacher does it:
+     * Grades → the assignment in Assessments → ⋮ (More actions) → Import
+     * Submissions → "Choose assignment…" → the assignment → Continue, which
+     * leaves the window at "Select your Canvas submissions .zip".
+     */
     public void openImport() {
+        String course = assignmentUrl.replaceFirst("\\?.*$", "");
+        driver.get(course + "?type=course");
+        openGrades();
+        selectAssessment(assignmentTitle);
+        importFromGradesMenu(assignmentTitle);
+    }
+
+    /** From a course page: its Grades (side panel → Grades), waiting for the Assessments list. */
+    public void openGrades() {
+        say("Opening the course's Grades");
+        clickInView(By.xpath("//a[normalize-space(.)='Grades']"));
+        new WebDriverWait(driver, LOAD).until(d -> !d.findElements(ASSESSMENTS).isEmpty());
+    }
+
+    /** The first assignment in the Assessments list (quizzes and discussions are passed over), selected; returns its title. */
+    public String selectFirstAssignment() {
+        Object title = ((JavascriptExecutor) driver).executeScript(
+                "const b = [...document.querySelectorAll('main button')].find(b => /\\n\\s*Assignment\\s*·/i.test(b.innerText));"
+                        + "return b ? b.innerText.split('\\n')[0].trim() : null;");
+        if (title == null) {
+            throw new IllegalStateException("No assignment in the Grades' Assessments list");
+        }
+        selectAssessment(title.toString());
+        return title.toString();
+    }
+
+    /** Selects the assessment in the Grades list; waits for its details on the right. */
+    public void selectAssessment(String title) {
+        say("Selecting \"" + title + "\" in Assessments");
+        clickInView(By.xpath("//main//button[starts-with(normalize-space(.), " + literal(title) + ")]"));
+        // selected: its details on the right show the name as a heading (shortened on screen, whole in the page)
+        new WebDriverWait(driver, LOAD).until(ExpectedConditions.presenceOfElementLocated(
+                By.xpath("//main//*[self::h1 or self::h2 or self::h3][normalize-space(.)=" + literal(title) + "]"
+                        + " | //main//*[@title=" + literal("Open \"" + title + "\"") + "]")));
+    }
+
+    /** ⋮ (More actions) → Import Submissions → "Choose assignment…" → the assignment → Continue. */
+    public void importFromGradesMenu(String title) {
         hookRequests();
-        WebElement b = find(OPEN_IMPORT);
-        centre(b);
-        b.click();
+        say("⋮ More actions → Import Submissions");
+        // the Grades header (with ⋮) can be scrolled out of sight, e.g. on a second visit: bring it back first
+        clickInView(By.xpath("//button[@aria-label='More actions']"));
+        clickInView(By.xpath("//*[@role='menuitem'][normalize-space(.)='Import Submissions']"));
+        say("Choosing \"" + title + "\" to import into");
+        clickInView(By.xpath(DIALOG + "//button[@role='combobox'][@aria-label='Select an existing assignment']"));
+        // each choice reads "<module> <assignment>", e.g. "Module 6: Shell Scripting Basics Lab: Script: ..."
+        clickInView(By.xpath("//*[@role='option'][substring(normalize-space(.), string-length(normalize-space(.)) - "
+                + (title.length() - 1) + ")=" + literal(title) + "]"));
+        clickInView(By.xpath(DIALOG + "//button[normalize-space(.)='Continue']"));
         new WebDriverWait(driver, LOAD).until(ExpectedConditions.presenceOfElementLocated(ZIP_INPUT));
+    }
+
+    /** Scrolls the element into view (its scrolling panel too), outlines it in watch mode, then clicks it as a user would. */
+    private void clickInView(By locator) {
+        WebElement e = new WebDriverWait(driver, LOAD).until(ExpectedConditions.presenceOfElementLocated(locator));
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", e);
+        show(e);
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(15)).until(ExpectedConditions.elementToBeClickable(e)).click();
+        } catch (TimeoutException | org.openqa.selenium.ElementClickInterceptedException ex) {
+            // still covered or not yet settled: a real mouse click on it
+            new org.openqa.selenium.interactions.Actions(driver).moveToElement(e).pause(Duration.ofMillis(300)).click().perform();
+        }
+    }
+
+    // ---- watch mode (WATCH_MS in .env) ----
+
+    /** Says in a banner at the top of the page what the run is doing or checking, then pauses. */
+    public void say(String what) {
+        if (WATCH <= 0) {
+            return;
+        }
+        System.out.println("[watch] " + what);
+        try {
+            ((JavascriptExecutor) driver).executeScript(
+                    "let b = document.getElementById('__lxpWatch');"
+                            + "if (!b) { b = document.createElement('div'); b.id = '__lxpWatch';"
+                            + "  b.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483647;"
+                            + "background:#ffcc00;color:#000;font:600 15px system-ui;padding:8px 16px;border-radius:8px;"
+                            + "box-shadow:0 2px 12px rgba(0,0,0,.4);pointer-events:none;max-width:80vw;text-align:center';"
+                            + "  document.body.appendChild(b); }"
+                            + "b.textContent = arguments[0];", what);
+        } catch (RuntimeException ignored) {
+            // the page is changing: the console line is enough
+        }
+        pause(WATCH);
+    }
+
+    /** Outlines the element in red for a moment, so a person sees what is clicked or checked. */
+    public void show(WebElement e) {
+        if (WATCH <= 0) {
+            return;
+        }
+        try {
+            ((JavascriptExecutor) driver).executeScript(
+                    "const e = arguments[0], old = e.style.outline;"
+                            + "e.style.outline = '3px solid #ff3b30'; e.style.outlineOffset = '2px';"
+                            + "setTimeout(() => { e.style.outline = old; }, arguments[1]);", e, WATCH + 500);
+        } catch (RuntimeException ignored) {
+            // gone already
+        }
+        pause(WATCH);
+    }
+
+    /** Outlines the list whose heading starts with this text ("Matched", "Unmatched" ...) while it is checked. */
+    public void showList(String heading) {
+        By h = By.xpath(DIALOG + "//*[not(*)][starts-with(translate(normalize-space(.), 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'), "
+                + literal(heading.toUpperCase()) + ")]");
+        List<WebElement> found = driver.findElements(h);
+        if (!found.isEmpty()) {
+            Object box = ((JavascriptExecutor) driver).executeScript(
+                    "let e = arguments[0], box = null;"
+                            + "for (let i = 0; i < 4 && e && !box; i++, e = e.parentElement) box = e.querySelector('[class*=\"divide-y\"]') ? e : null;"
+                            + "return box || arguments[0];", found.get(0));
+            if (box instanceof WebElement w) {
+                show(w);
+            }
+        }
+    }
+
+    /** How many imports the page has sent since the window was opened (0 while only previewing). */
+    public int importsSent() {
+        return replies("import").size();
     }
 
     public boolean isOpen() {
@@ -364,9 +499,11 @@ public class ImportSubmissionsPage extends BasePage {
             click(REMOVE_FILE);
         }
         int before = replies("preview").size();
+        say("Uploading " + zip.getFileName() + " (preview only, nothing is saved yet)");
         driver.findElement(ZIP_INPUT).sendKeys(zip.toAbsolutePath().toString());
         new WebDriverWait(driver, LOAD).until(d -> replies("preview").size() > before
                 && !d.findElements(PREVIEW_SHOWN).isEmpty());
+        say("Preview: " + windowText().replaceAll("^.*?(\\d+ of \\d+ submissions will be imported).*$", "$1"));
         List<Map<String, Object>> all = replies("preview");
         Object data = all.get(all.size() - 1).get("data");
         return data instanceof Map<?, ?> m ? (Map<String, Object>) m : Map.of();
@@ -444,6 +581,8 @@ public class ImportSubmissionsPage extends BasePage {
     public Map<String, Object> importNow() {
         int before = replies("import").size();
         WebElement b = find(IMPORT);
+        say("Clicking \"" + b.getText().strip() + "\"");
+        show(b);
         new WebDriverWait(driver, LOAD).until(d -> b.isEnabled());
         centre(b);
         b.click();
@@ -455,6 +594,7 @@ public class ImportSubmissionsPage extends BasePage {
     }
 
     public void close() {
+        say("Closing the import window");
         if (!driver.findElements(DONE).isEmpty()) {
             driver.findElements(DONE).get(0).click();
         } else if (!driver.findElements(CLOSE).isEmpty()) {

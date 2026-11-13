@@ -3,10 +3,24 @@ Feature: Import Submissions from a Canvas submissions ZIP
   Signed in to the LXP as keerthana@sentellent.com (LXP_EMAIL), on
   "Unix/linux mirror course 2026" (UL-001, its students come from Canvas),
   the teacher imports a real Canvas submissions ZIP into "Lab: Script:
-  Automate a File Processing Task" from its Responses tab ("Import
-  Submissions" → "Import Canvas Submissions"). No Canvas login is needed.
+  Automate a File Processing Task" from the course's Grades page: the
+  assignment in Assessments → ⋮ (More actions) → Import Submissions →
+  "Choose assignment…" → the assignment → Continue. The results are checked
+  on the assignment's Responses tab and in Quick Review (its View).
+  No Canvas login is needed.
 
-  The ZIP is Canvas → "Lab: Set Permissions for a Simulated Company Tree" →
+  First, the match check alone, with nothing imported: on "Testing staging
+  course" (ST-001), the first assignment in Grades ("Configure and
+  Smoke-Test a Local Staging Example") previews the Canvas ZIP downloaded
+  for it (src/test/resources/files/staging_submissions.zip, 1 file from
+  "1student"); every student in it must be in the green Matched list, and
+  the window is closed without importing.
+
+  Watch mode: with WATCH_MS in .env (default 1500 ms; 0 turns it off) the
+  run outlines in red what it clicks or checks, says it in a yellow banner
+  at the top of the page, and pauses, so the run can be followed.
+
+  The other ZIP is Canvas → "Lab: Set Permissions for a Simulated Company Tree" →
   Download Submissions (22 files from 21 students), saved as
   src/test/resources/files/canvas_submissions.zip. It holds student work,
   so it is kept out of git (.gitignore): on another machine, put it there,
@@ -35,6 +49,15 @@ Feature: Import Submissions from a Canvas submissions ZIP
     Given credentials are configured
     And the Canvas submissions ZIP "canvas_submissions.zip" is in the test files
     And I am signed in
+
+    # TC1 on "Testing staging course": students whose login IDs match enrolled students
+    # appear in the Matched (green) list (preview only, nothing is imported)
+    When I open the Grades of the course "Testing staging course"
+    And I open Import Submissions for the first assignment
+    And I upload the Canvas ZIP "staging_submissions.zip" to preview it
+    Then every student in the ZIP is in the green Matched list
+    And I close the import window without importing
+
     When I open the Responses of the assignment "Lab: Script: Automate a File Processing Task" in the course "Unix/linux mirror course 2026"
 
     # TC1: Preview correctly matches students before importing

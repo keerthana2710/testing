@@ -3,3 +3,4 @@ java-login/target/
 
 # real Canvas submissions (student work): kept on this machine only
 java-login/src/test/resources/files/canvas_submissions.zip
+java-login/src/test/resources/files/staging_submissions.zip
