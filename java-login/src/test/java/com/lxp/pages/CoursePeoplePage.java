@@ -27,6 +27,7 @@ public class CoursePeoplePage extends BasePage {
             "//main//button[starts-with(normalize-space(.), 'Published')]");
     private static final By UNPUBLISHED = By.xpath(
             "//main//button[starts-with(normalize-space(.), 'Unpublished')]");
+    private static final By COURSE_SEARCH = By.cssSelector("input[placeholder='Search courses...']");
     private static final By PEOPLE_LINK = By.cssSelector("a[href$='view=people']");
     private static final By LIST_SEARCH = By.cssSelector("input[aria-label='Search users']");
     private static final By ADD_USERS = By.xpath("//main//button[starts-with(normalize-space(.), 'Add Users')]");
@@ -69,13 +70,18 @@ public class CoursePeoplePage extends BasePage {
 
     public CoursePeoplePage openFor(String courseTitle) {
         open("/courses");
+        // the lists hold hundreds of courses and show only the first few cards,
+        // so search for the title first
+        new WebDriverWait(driver, Duration.ofSeconds(30))
+                .until(ExpectedConditions.visibilityOfElementLocated(COURSE_SEARCH));
+        type(COURSE_SEARCH, courseTitle);
         By course = By.xpath("//a[starts-with(@href,'/course/')][contains(normalize-space(.), "
                 + literal(courseTitle) + ")]");
         // Published and unpublished courses are separate lists, and the page
         // remembers whichever was shown last, so try the other one if needed.
-        if (!isVisible(course, Duration.ofSeconds(5))) {
+        if (!isVisible(course, Duration.ofSeconds(10))) {
             click(PUBLISHED);
-            if (!isVisible(course, Duration.ofSeconds(5))) {
+            if (!isVisible(course, Duration.ofSeconds(10))) {
                 click(UNPUBLISHED);
             }
         }

@@ -43,6 +43,10 @@ public class CreateCoursePage extends BasePage {
     // Generate asks twice: whether to add more first, then to confirm planning
     private static final By GENERATE_ANYWAY = By.xpath("//button[normalize-space(.)='Generate anyway']");
     private static final By PLAN_THE_COURSE = By.xpath("//button[normalize-space(.)='Plan the course']");
+    // the course page once planning has begun: "Course plan  Planning…  Laying out the modules…", or the plan itself
+    private static final By PLAN_STARTED = By.xpath("//main//h2[normalize-space(.)='Course plan']"
+            + " | //main//*[starts-with(normalize-space(text()), 'Planning')]"
+            + " | //button[normalize-space(.)='Approve plan']");
 
     // the side nav of Course Setup, and a heading only that section shows
     private static final By SCHEDULE_SECTION = By.xpath("(//div[@role='dialog']//button[.//*[normalize-space(.)='Syllabus & Schedule']])[1]");
@@ -323,7 +327,23 @@ public class CreateCoursePage extends BasePage {
         if (isVisible(GENERATE_ANYWAY, Duration.ofSeconds(5))) {
             click(GENERATE_ANYWAY);
         }
+        // A click on "Plan the course" while its window was still animating in
+        // was lost once (Nov 13): nothing was planned and the run then waited
+        // 15 min for Approve. So check the plan really started; click again if not.
+        wait.until(ExpectedConditions.visibilityOfElementLocated(PLAN_THE_COURSE));
+        pause(800);
         click(PLAN_THE_COURSE);
+        if (isVisible(PLAN_STARTED, Duration.ofSeconds(30))) {
+            return;
+        }
+        // still asking "Plan the course"? the click was lost: click it again
+        if (isVisible(PLAN_THE_COURSE, Duration.ofSeconds(1))) {
+            click(PLAN_THE_COURSE);
+        }
+        if (isVisible(PLAN_STARTED, Duration.ofSeconds(30))) {
+            return;
+        }
+        throw new IllegalStateException("Clicked \"Plan the course\" twice, but the course plan did not start (no \"Planning…\")");
     }
 
     /** Waits until the AI has finished the plan: Approve shows, or Plan again is enabled again. */

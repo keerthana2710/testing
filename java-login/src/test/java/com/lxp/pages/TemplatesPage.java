@@ -123,10 +123,23 @@ public class TemplatesPage extends BasePage {
         return !next.isEmpty() && next.get(0).isEnabled();
     }
 
+    /**
+     * Next, then waits until the list has settled on the new page: the cards
+     * differ from before, no spinner, and the same cards on two reads 1s apart.
+     * The list keeps refreshing (spinner) for up to ~10s after a load, so the
+     * first change seen is not always the final page (Nov 13: a read straight
+     * after the change still saw page 1's cards).
+     */
     public void nextPage() {
         List<String> before = names();
         click(NEXT_PAGE);
-        new WebDriverWait(driver, LOAD_TIMEOUT).until(d -> !names().isEmpty() && !names().equals(before));
+        java.util.concurrent.atomic.AtomicReference<List<String>> last = new java.util.concurrent.atomic.AtomicReference<>(List.of());
+        new WebDriverWait(driver, LOAD_TIMEOUT, Duration.ofMillis(1000)).until(d -> {
+            List<String> now = d.findElements(SPINNER).isEmpty() ? names() : List.of();
+            boolean settled = !now.isEmpty() && !now.equals(before) && now.equals(last.get());
+            last.set(now);
+            return settled;
+        });
     }
 
     public void search(String text) {

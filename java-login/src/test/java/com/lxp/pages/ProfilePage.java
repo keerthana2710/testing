@@ -130,15 +130,37 @@ public class ProfilePage extends BasePage {
     }
 
     public ProfilePage chooseColorMode(String mode) {
-        clickUnderHeader(colorModeButton(mode));
-        wait.until(d -> mode.equals(selectedColorMode()));
+        choose(colorModeButton(mode), () -> mode.equals(selectedColorMode()));
         return this;
     }
 
     public ProfilePage chooseDisplaySize(String size) {
-        clickUnderHeader(displaySizeButton(size));
-        wait.until(d -> size.equals(selectedDisplaySize()));
+        choose(displaySizeButton(size), () -> size.equals(selectedDisplaySize()));
         return this;
+    }
+
+    /**
+     * Clicks a choice and checks it became the selected one. After a reload the
+     * Canvas connections list loads late and pushes Appearance down, so a click
+     * aimed at a button can land on a Canvas row instead (Nov 13): if the choice
+     * is not selected within 5s, scroll to it and click again, by script the last time.
+     */
+    private void choose(By button, java.util.function.BooleanSupplier selected) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            if (attempt < 3) {
+                clickUnderHeader(button);
+            } else {
+                WebElement b = find(button);
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", b);
+            }
+            try {
+                new WebDriverWait(driver, Duration.ofSeconds(5)).until(d -> selected.getAsBoolean());
+                return;
+            } catch (TimeoutException notYet) {
+                // the click missed; try again
+            }
+        }
+        wait.until(d -> selected.getAsBoolean());
     }
 
     /**

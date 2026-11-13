@@ -132,11 +132,15 @@ public class ImsccPage extends BasePage {
         return outline;
     }
 
-    /** Export → As IMSCC → Export All, then waits for the .imscc to finish downloading. */
+    /** Export → (As IMSCC, on older builds) → Export Modules → Export All, then waits for the .imscc to finish downloading. */
     public Path exportAsImscc() {
         clearDownloads();
         click(EXPORT);
-        click(AS_IMSCC);
+        // Export used to open a menu (As IMSCC / ...); since Nov 2026 it opens
+        // the Export Modules window straight away, so As IMSCC is clicked only if shown
+        if (!isVisible(EXPORT_WINDOW, Duration.ofSeconds(5)) && isVisible(AS_IMSCC, Duration.ofSeconds(1))) {
+            click(AS_IMSCC);
+        }
         find(EXPORT_WINDOW);
         click(EXPORT_ALL);
         // "Preparing export ... 100%", then "Ready — downloading in 5s"
